@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWIFT Custom LMS - Enterprise Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-enter { animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .nav-item.active { background: linear-gradient(90deg, rgba(59,130,246,0.15), transparent); border-left: 3px solid #3b82f6; color: #fff; }
+        .glass { backdrop-filter: blur(12px); background: rgba(30, 41, 59, 0.4); }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+<!-- Custom Toast Notification Container -->
+<div id="toast-container" class="fixed top-5 right-5 z-[200] flex flex-col gap-3 pointer-events-none"></div>
+
+<!-- Universal App Modal (For EMS & Details) -->
+<div id="appModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    <div class="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl w-full max-w-lg transform scale-95 transition-transform duration-300" id="appModalContent">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
+            <h3 id="modalTitle" class="text-lg font-bold text-white flex items-center gap-2"></h3>
+            <button onclick="closeModal()" class="text-slate-500 hover:text-rose-400 transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <div id="modalBody" class="text-sm text-slate-300 space-y-3 max-h-[70vh] overflow-y-auto pr-2"></div>
+        <div class="mt-6 flex justify-end">
+            <button onclick="closeModal()" class="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Auth Overlay (Register & Login) -->
+<div id="authOverlay" class="fixed inset-0 bg-slate-950 z-[100] flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-md my-8">
+        
+        <div class="text-center mb-6">
+            <div class="inline-flex bg-blue-600/10 p-3 rounded-2xl mb-3 border border-blue-500/30">
+                <i class="fa-solid fa-graduation-cap text-2xl text-blue-400"></i>
+            </div>
+            <h1 class="text-xl font-bold text-white">SWIFT CUSTOM LMS</h1>
+            <p class="text-xs text-slate-400 mt-1">Argon2id Secured Enterprise Platform</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex bg-slate-800 rounded-lg p-1 mb-5">
+            <button onclick="toggleAuthMode('login')" id="btnShowLogin" class="flex-1 text-xs py-2.5 rounded-md bg-blue-600 text-white font-bold transition">Sign In</button>
+            <button onclick="toggleAuthMode('register')" id="btnShowRegister" class="flex-1 text-xs py-2.5 rounded-md text-slate-400 hover:text-white font-bold transition">Register</button>
+        </div>
+
+        <!-- LOGIN FORM -->
+        <div id="loginForm" class="space-y-3">
+            <div>
+                <label class="text-[11px] text-slate-400 font-medium mb-1 block">Email Address</label>
+                <input id="loginEmail" type="email" placeholder="you@company.com" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="text-[11px] text-slate-400 font-medium mb-1 block">Password</label>
+                <input id="loginPassword" type="password" placeholder="••••••••" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none">
+            </div>
+            <button onclick="attemptLogin()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg text-sm transition flex items-center justify-center gap-2 mt-2">
+                <i class="fa-solid fa-lock"></i> Authenticate
+            </button>
+        </div>
+
+        <!-- REGISTER FORM -->
+        <div id="registerForm" class="hidden space-y-3">
+            <div>
+                <label class="text-[11px] text-slate-400 font-medium mb-1 block">Full Name</label>
+                <input id="regName" type="text" placeholder="Usman Ali" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="text-[11px] text-slate-400 font-medium mb-1 block">Employee ID</label>
+                <input id="regEmpId" type="text" placeholder="EMP-101" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="text-[11px] text-slate-400 font-medium mb-1 block">Email Address</label>
+                <input id="regEmail" type="email" placeholder="usman@company.com" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="text-[11px] text-slate-400 font-medium mb-1 block">Password</label>
+                <input id="regPassword" type="password" placeholder="Min 6 characters" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="text-[11px] text-slate-400 font-medium mb-1 block">Role Selection</label>
+                <select id="regRole" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none">
+                    <option value="LEARNER">🎓 Learner</option>
+                    <option value="TRAINER">👨‍🏫 Trainer</option>
+                    <option value="COURSE_ADMIN">👑 Course Admin</option>
+                    <option value="SUPER_ADMIN">🛡️ Super Admin</option>
+                </select>
+            </div>
+            <button onclick="attemptRegister()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-lg text-sm transition flex items-center justify-center gap-2 mt-2">
+                <i class="fa-solid fa-user-plus"></i> Create Secure Account
+            </button>
+        </div>
+
+        <p class="text-[10px] text-center text-slate-500 mt-5">
+            <i class="fa-solid fa-shield-halved text-emerald-400"></i> Argon2id Hashing · JWT · UTC Enforced
+        </p>
+    </div>
+</div>
+
+<!-- Sidebar -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-slate-900 border-r border-slate-800 z-40 flex flex-col hidden lg:flex">
+    <div class="px-5 py-5 border-b border-slate-800 flex items-center gap-3">
+        <div class="bg-blue-600 p-2 rounded-lg"><i class="fa-solid fa-graduation-cap text-white"></i></div>
+        <div><h1 class="text-sm font-bold text-white">SWIFT LMS</h1><p class="text-[10px] text-slate-500">v1.0 Enterprise</p></div>
+    </div>
+
+    <nav class="flex-1 py-4 overflow-y-auto">
+        <div class="px-4 pb-2 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Workspace</div>
+        <a onclick="navigate('dashboard', event)" class="nav-item active cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition"><i class="fa-solid fa-chart-pie w-5"></i> Dashboard</a>
+        <a onclick="navigate('attendance', event)" class="nav-item cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition"><i class="fa-solid fa-clock w-5"></i> Attendance Engine</a>
+        <a onclick="navigate('courses', event)" class="nav-item cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition"><i class="fa-solid fa-book-open w-5"></i> Courses & Cohorts</a>
+        <a onclick="navigate('assessment', event)" class="nav-item cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition"><i class="fa-solid fa-vial w-5"></i> Assessments & Rubrics</a>
+        <a onclick="navigate('learnerProfile', event)" class="nav-item cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition"><i class="fa-solid fa-address-card w-5"></i> Learner Profile</a>
+        <a onclick="navigate('bulk', event)" class="nav-item cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition"><i class="fa-solid fa-list-check w-5"></i> Bulk Assignment</a>
+
+        <div class="px-4 pt-5 pb-2 text-[10px] text-slate-500 uppercase font-bold tracking-wider">Enterprise API</div>
+        <a onclick="navigate('ems', event)" class="nav-item cursor-pointer flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 hover:text-white transition"><i class="fa-solid fa-plug w-5"></i> EMS 360 Sync</a>
+    </nav>
+
+    <div class="px-4 py-3 border-t border-slate-800">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-sm font-bold text-white">
+                <span id="userInitial">?</span>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p id="userName" class="text-xs font-semibold text-white truncate">Loading...</p>
+                <p id="userRole" class="text-[10px] text-blue-400">—</p>
+            </div>
+            <button onclick="logout()" title="Logout" class="text-slate-500 hover:text-rose-400 transition"><i class="fa-solid fa-power-off"></i></button>
+        </div>
+    </div>
+</aside>
+
+<!-- Main Content -->
+<main class="lg:ml-64 min-h-screen">
+    <header class="bg-slate-900/70 glass border-b border-slate-800 px-4 lg:px-8 py-4 flex justify-between items-center sticky top-0 z-30">
+        <div>
+            <h2 id="pageTitle" class="text-base lg:text-lg font-bold text-white">Executive Dashboard</h2>
+            <p class="text-[10px] lg:text-xs text-slate-500">Real-time operations overview</p>
+        </div>
+        <div class="flex items-center gap-2 lg:gap-4">
+            <div class="bg-slate-800/60 border border-slate-700 px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg text-right hidden sm:block">
+                <div class="text-[9px] lg:text-[10px] text-emerald-400 font-semibold uppercase" id="tz-label">Local</div>
+                <div id="user-tz" class="text-[10px] lg:text-xs font-mono text-slate-300">Asia/Karachi</div>
+            </div>
+            <div class="bg-slate-800/60 border border-slate-700 px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg text-right">
+                <div class="text-[9px] lg:text-[10px] text-blue-400 font-semibold uppercase">UTC Time</div>
+                <div id="utc-clock" class="text-[10px] lg:text-xs font-mono font-bold text-white">00:00:00</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="p-4 lg:p-8 pb-10">
+
+        <!-- DASHBOARD PAGE -->
+        <div id="page-dashboard" class="page active">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4 mb-6">
+                <div class="bg-slate-900 border border-slate-800 p-4 lg:p-5 rounded-xl"><p class="text-[10px] lg:text-xs text-slate-400 uppercase">Learners</p><h3 class="text-2xl lg:text-3xl font-bold text-white mt-1">1,247</h3><p class="text-[10px] lg:text-xs text-emerald-400 mt-2"><i class="fa-solid fa-arrow-up"></i> +12%</p></div>
+                <div class="bg-slate-900 border border-slate-800 p-4 lg:p-5 rounded-xl"><p class="text-[10px] lg:text-xs text-slate-400 uppercase">Active Cohorts</p><h3 class="text-2xl lg:text-3xl font-bold text-white mt-1">38</h3><p class="text-[10px] lg:text-xs text-emerald-400 mt-2"><i class="fa-solid fa-arrow-up"></i> 6 new</p></div>
+                <div class="bg-slate-900 border border-slate-800 p-4 lg:p-5 rounded-xl"><p class="text-[10px] lg:text-xs text-slate-400 uppercase">Avg Attendance</p><h3 class="text-2xl lg:text-3xl font-bold text-white mt-1">94.2%</h3><p class="text-[10px] lg:text-xs text-emerald-400 mt-2"><i class="fa-solid fa-arrow-up"></i> +2.1%</p></div>
+                <div class="bg-slate-900 border border-slate-800 p-4 lg:p-5 rounded-xl"><p class="text-[10px] lg:text-xs text-slate-400 uppercase">Certifications</p><h3 class="text-2xl lg:text-3xl font-bold text-white mt-1">862</h3><p class="text-[10px] lg:text-xs text-emerald-400 mt-2"><i class="fa-solid fa-arrow-up"></i> 54 today</p></div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="lg:col-span-2 bg-slate-900 border border-slate-800 p-4 lg:p-6 rounded-xl">
+                    <h3 class="text-xs lg:text-sm font-bold text-white mb-4"><i class="fa-solid fa-chart-line text-blue-400 mr-2"></i>Learning Progression Analytics</h3>
+                    <canvas id="learningChart" height="90"></canvas>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-4 lg:p-6 rounded-xl flex flex-col justify-center items-center">
+                    <h3 class="text-xs lg:text-sm font-bold text-white w-full mb-4"><i class="fa-solid fa-chart-pie text-purple-400 mr-2"></i>Role Distribution</h3>
+                    <div class="w-full max-w-[200px]"><canvas id="roleChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ATTENDANCE PAGE -->
+        <div id="page-attendance" class="page">
+            <div class="bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl mb-6 flex items-start gap-3">
+                <i class="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5"></i>
+                <div>
+                    <p class="text-sm font-semibold text-amber-200">Core Rule (File 1 Spec)</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Breaks do NOT create new session check-ins. All segments under single UTC record.</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+                    <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-stopwatch text-blue-400 mr-2"></i>Live Session Controller</h3>
+                    <div class="space-y-3">
+                        <button onclick="apiCall('/attendance/check-in', 'POST', {cohort_id: 'C-2026'}, 'Session Checked-in successfully!')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition"><i class="fa-solid fa-right-to-bracket"></i> Session Check-In</button>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="breakType" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                                <option value="BREAKFAST">BREAKFAST</option><option value="LUNCH" selected>LUNCH</option><option value="PRAYER">PRAYER</option><option value="PERSONAL">PERSONAL</option>
+                            </select>
+                            <button onclick="apiCall('/attendance/break/start', 'POST', {cohort_id: 'C-2026', break_type: document.getElementById('breakType').value}, 'Break started! Timer running.')" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 px-2 rounded-lg text-sm transition"><i class="fa-solid fa-mug-hot mr-1"></i> Start Break</button>
+                        </div>
+                        <button onclick="apiCall('/attendance/break/end', 'POST', {cohort_id: 'C-2026'}, 'Break ended. Session resumed.')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-lg text-sm flex items-center justify-center gap-2 transition"><i class="fa-solid fa-play"></i> End Break & Resume</button>
+                        <button onclick="apiCall('/attendance/check-out', 'POST', {cohort_id: 'C-2026'}, 'Session Checked-out successfully!')" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition"><i class="fa-solid fa-right-from-bracket"></i> Session Check-Out</button>
+                    </div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+                    <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-chart-bar text-emerald-400 mr-2"></i>Today's Segments</h3>
+                    <div class="space-y-3 text-xs">
+                        <div class="flex justify-between p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg"><span class="text-slate-300"><i class="fa-solid fa-circle-dot text-blue-400 mr-2"></i>Active Learning</span><span class="font-mono font-bold text-blue-400">180 min</span></div>
+                        <div class="flex justify-between p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg"><span class="text-slate-300"><i class="fa-solid fa-circle-dot text-amber-400 mr-2"></i>Break Time (Lunch)</span><span class="font-mono font-bold text-amber-400">30 min</span></div>
+                        <div class="flex justify-between p-3 bg-rose-500/5 border border-rose-500/20 rounded-lg"><span class="text-slate-300"><i class="fa-solid fa-circle-dot text-rose-400 mr-2"></i>Idle / Inactive</span><span class="font-mono font-bold text-rose-400">12 min</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COURSES PAGE -->
+        <div id="page-courses" class="page">
+            <div class="flex justify-between items-center mb-5">
+                <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-book-open text-blue-400 mr-2"></i>Course Directory</h3>
+                <button onclick="apiCall('/courses', 'POST', {course_code:'CS-101', title:'Advanced Cybersecurity', duration_hours:60, category:'Tech'}, 'New Course Created Successfully!')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition"><i class="fa-solid fa-plus mr-1"></i> New Course API</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl"><div class="flex justify-between mb-3"><span class="bg-blue-500/10 text-blue-400 text-[10px] font-bold px-2 py-1 rounded">HYBRID</span></div><h4 class="font-bold text-white">Full-Stack Dev</h4><p class="text-xs text-slate-400 mt-1">Node.js, Express, MongoDB.</p></div>
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl"><div class="flex justify-between mb-3"><span class="bg-purple-500/10 text-purple-400 text-[10px] font-bold px-2 py-1 rounded">REMOTE</span></div><h4 class="font-bold text-white">Cyber Security</h4><p class="text-xs text-slate-400 mt-1">Argon2id, JWT, API Defense.</p></div>
+            </div>
+        </div>
+
+        <!-- ASSESSMENT PAGE -->
+        <div id="page-assessment" class="page">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Assessment Submit -->
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+                    <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-vial text-purple-400 mr-2"></i>Submit Assessment API</h3>
+                    <div class="space-y-3">
+                        <input type="text" id="assTitle" placeholder="Assessment Title (e.g. Module 1 Quiz)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-purple-500 focus:outline-none">
+                        <select id="assType" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                            <option value="BASELINE">BASELINE</option><option value="MODULE" selected>MODULE</option><option value="FINAL">FINAL</option>
+                        </select>
+                        <div class="grid grid-cols-2 gap-3">
+                            <input type="number" id="assScore" placeholder="Score Obtained" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                            <input type="number" id="assTotal" placeholder="Total Marks" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                        </div>
+                        <button onclick="submitAssessment()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 rounded-lg text-sm transition"><i class="fa-solid fa-paper-plane mr-2"></i> Submit & Auto-Grade</button>
+                    </div>
+                </div>
+
+                <!-- Instructor Rubric -->
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+                    <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-user-check text-amber-400 mr-2"></i>Instructor Observation Rubric</h3>
+                    <div id="rubricContainer" class="grid grid-cols-1 gap-3 mb-4"></div>
+                    <button onclick="apiCall('/observations', 'POST', {learner_id: currentUser?._id, cohort_id: 'C-101', engagement_score: 9, trainer_notes: 'Good'}, 'Rubric Evaluation Saved Successfully!')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2.5 rounded-lg text-sm transition"><i class="fa-solid fa-save mr-2"></i> Save Rubric Analytics</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- LEARNER PROFILE -->
+        <div id="page-learnerProfile" class="page">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl flex flex-col items-center">
+                    <div id="profileAvatar" class="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-3xl font-bold text-white mb-4 shadow-lg shadow-blue-500/20">?</div>
+                    <h3 id="profileName" class="text-xl font-bold text-white">Loading...</h3>
+                    <p id="profileRole" class="text-sm text-slate-400 mb-6">—</p>
+                    <div class="w-full space-y-2 text-xs">
+                        <div class="flex justify-between p-2 bg-slate-800 rounded"><span class="text-slate-400">Timezone</span><span class="font-bold text-slate-200" id="profileTz">—</span></div>
+                    </div>
+                </div>
+                <div class="lg:col-span-2 bg-slate-900 border border-slate-800 p-6 rounded-xl flex flex-col justify-center">
+                    <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-certificate text-amber-400 mr-2"></i>Verified Achievement Certificate</h3>
+                    <div class="bg-slate-800 border border-slate-700 p-6 rounded-lg flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-6 relative overflow-hidden">
+                        <div class="flex-1 z-10">
+                            <h4 class="text-lg font-serif text-slate-300 italic mb-1">Certificate of Completion</h4>
+                            <h2 class="text-2xl font-bold text-white mb-2">Enterprise Software Engineering</h2>
+                            <p class="text-sm text-slate-400 mb-1">Awarded to <strong id="certName" class="text-white">—</strong></p>
+                            <div class="mt-4 flex gap-2 flex-wrap justify-center sm:justify-start">
+                                <span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-1 rounded font-bold border border-emerald-500/20">VERIFIED</span>
+                                <span class="bg-blue-500/10 text-blue-400 text-[10px] px-2 py-1 rounded font-bold border border-blue-500/20">UTC TIMESTAMPED</span>
+                            </div>
+                        </div>
+                        <!-- Dynamic QR Code using QR Server API -->
+                        <div class="w-28 h-28 bg-white p-1.5 rounded-lg z-10 shadow-lg shrink-0">
+                            <img id="qrCode" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=SWIFT-LMS-Verified" alt="QR" class="w-full h-full">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BULK ASSIGNMENT -->
+        <div id="page-bulk" class="page">
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
+                <h3 class="text-sm font-bold text-white mb-2"><i class="fa-solid fa-users text-blue-400 mr-2"></i>Bulk Search & Assignment</h3>
+                <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                    <input type="text" placeholder="Search employees..." class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    <button class="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-5 py-2 rounded-lg text-sm transition">Search</button>
+                </div>
+                <table class="w-full text-xs text-left text-slate-300 hidden sm:table mb-4">
+                    <thead class="bg-slate-800/50 text-slate-400 uppercase text-[10px]"><tr><th class="p-3 w-10"><input type="checkbox" checked></th><th class="p-3">ID</th><th class="p-3">Name</th><th class="p-3">Dept</th></tr></thead>
+                    <tbody><tr class="border-t border-slate-800"><td class="p-3"><input type="checkbox" checked></td><td class="p-3">EMP-1024</td><td class="p-3">Zainab Hassan</td><td class="p-3">IT</td></tr></tbody>
+                </table>
+                <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-800">
+                    <select class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none"><option>Cyber Security</option></select>
+                    <button onclick="showToast('Course assigned to 12 selected learners successfully!', 'success')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-2 rounded-lg text-sm transition"><i class="fa-solid fa-paper-plane mr-2"></i>Bulk Assign</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMS PAGE -->
+        <div id="page-ems" class="page">
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl max-w-2xl">
+                <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-plug text-emerald-400 mr-2"></i>Employee 360 (EMS API Integration)</h3>
+                <p class="text-xs text-slate-400 mb-5">Fetch data securely via API to prevent direct database coupling (Section 18 Spec).</p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input id="emsEmpId" type="text" placeholder="Enter Employee ID (e.g. EMP-101)" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    <button onclick="fetchEms()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-6 py-2 rounded-lg transition"><i class="fa-solid fa-magnifying-glass mr-2"></i> Fetch 360</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<script>
+// --- GLOBAL STATE & UTILS ---
+let authToken = null;
+let currentUser = null;
+
+// Custom Toast Notification System
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    
+    // Style configurations based on type
+    const bgClass = 'bg-slate-900';
+    const borderClass = type === 'success' ? 'border-emerald-500' : (type === 'error' ? 'border-rose-500' : 'border-amber-500');
+    const iconClass = type === 'success' ? 'fa-check-circle text-emerald-500' : (type === 'error' ? 'fa-circle-xmark text-rose-500' : 'fa-triangle-exclamation text-amber-500');
+    
+    toast.className = `toast-enter flex items-start gap-3 w-80 max-w-[90vw] ${bgClass} border-l-4 ${borderClass} shadow-2xl rounded-lg p-4 pointer-events-auto`;
+    toast.innerHTML = `
+        <i class="fa-solid ${iconClass} mt-0.5 text-lg"></i>
+        <div class="flex-1">
+            <h4 class="text-sm font-bold text-white mb-0.5">${type.toUpperCase()}</h4>
+            <p class="text-xs text-slate-300 leading-relaxed">${message}</p>
+        </div>
+        <button onclick="this.parentElement.remove()" class="text-slate-500 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+    `;
+    
+    container.appendChild(toast);
+    setTimeout(() => {
+        if(toast.parentElement) {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            toast.style.transition = 'all 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 4000);
+}
+
+// Custom Modal System
+function openModal(title, htmlContent) {
+    document.getElementById('modalTitle').innerHTML = title;
+    document.getElementById('modalBody').innerHTML = htmlContent;
+    const modal = document.getElementById('appModal');
+    modal.classList.remove('hidden');
+    // slight delay for animation
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        document.getElementById('appModalContent').classList.remove('scale-95');
+    }, 10);
+}
+
+function closeModal() {
+    const modal = document.getElementById('appModal');
+    modal.classList.add('opacity-0');
+    document.getElementById('appModalContent').classList.add('scale-95');
+    setTimeout(() => modal.classList.add('hidden'), 300);
+}
+
+// --- SECURE API CALLER ---
+async function apiCall(endpoint, method = 'GET', body = null, successMsg = null, isAuthAction = false) {
+    if (!isAuthAction && !authToken) return showToast("Session expired. Please sign in.", 'error');
+    
+    try {
+        const opts = { method, headers: { 'Content-Type': 'application/json' } };
+        if (authToken) opts.headers['Authorization'] = `Bearer ${authToken}`;
+        if (body) opts.body = JSON.stringify(body);
+        
+        const res = await fetch('/api/v1' + endpoint, opts);
+        const data = await res.json();
+        
+        if (data.success) {
+            if(successMsg) showToast(successMsg, 'success');
+            return data;
+        } else {
+            showToast(data.message || (data.error && data.error.message) || 'Request Failed', 'error');
+            return null;
+        }
+    } catch (err) {
+        showToast("Server Error: " + err.message, 'error');
+        return null;
+    }
+}
+
+// --- AUTH LOGIC ---
+async function attemptRegister() {
+    const body = {
+        full_name: document.getElementById('regName').value,
+        employee_id: document.getElementById('regEmpId').value,
+        email: document.getElementById('regEmail').value,
+        password: document.getElementById('regPassword').value,
+        role: document.getElementById('regRole').value,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+    if (!body.full_name || !body.employee_id || !body.email || !body.password) return showToast('Please fill all fields', 'error');
+    
+    const res = await apiCall('/auth/register', 'POST', body, 'Account created successfully! Please login.', true);
+    if(res) {
+        setTimeout(() => {
+            toggleAuthMode('login');
+            document.getElementById('loginEmail').value = body.email;
+        }, 1500);
+    }
+}
+
+async function attemptLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    if (!email || !password) return showToast('Enter email and password', 'error');
+
+    const res = await apiCall('/auth/login', 'POST', {email, password}, 'Authentication Successful', true);
+    if(res) {
+        authToken = res.data.token;
+        currentUser = res.data;
+        
+        // Hide UI
+        document.getElementById('authOverlay').style.display = 'none';
+        
+        // Update Data
+        document.getElementById('userName').innerText = currentUser.full_name;
+        document.getElementById('userRole').innerText = currentUser.role;
+        document.getElementById('userInitial').innerText = currentUser.full_name.charAt(0).toUpperCase();
+        
+        document.getElementById('profileName').innerText = currentUser.full_name;
+        document.getElementById('profileRole').innerText = currentUser.employee_id + ' | ' + currentUser.role;
+        document.getElementById('profileAvatar').innerText = currentUser.full_name.charAt(0).toUpperCase();
+        document.getElementById('profileTz').innerText = currentUser.timezone || 'UTC';
+        document.getElementById('certName').innerText = currentUser.full_name;
+        
+        // Dynamic QR code generation based on user Name
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Verified_SWIFT_LMS_${encodeURIComponent(currentUser.full_name)}`;
+        document.getElementById('qrCode').src = qrUrl;
+        
+        initCharts();
+        buildRubric();
+    }
+}
+
+function logout() { location.reload(); }
+
+// --- SPECIFIC API WRAPPERS ---
+async function submitAssessment() {
+    const title = document.getElementById('assTitle').value || 'Module Exam';
+    const score = parseInt(document.getElementById('assScore').value) || 0;
+    const total = parseInt(document.getElementById('assTotal').value) || 10;
+    const type = document.getElementById('assType').value;
+    
+    const res = await apiCall('/assessments/submit', 'POST', {
+        cohort_id: 'C-2026', assessment_type: type, title: title, raw_score: score, total_marks: total, weak_topics: ['Timezone Configurations']
+    });
+    
+    if(res) {
+        if(res.data && res.data.triggers_remedial) {
+            showToast("Assessment recorded. Remedial training triggered due to low score/weak topics.", 'warning');
+        } else {
+            showToast("Assessment passed and recorded successfully!", 'success');
+        }
+    }
+}
+
+async function fetchEms() {
+    const empId = document.getElementById('emsEmpId').value || currentUser.employee_id;
+    if(!empId) return showToast('Please enter an Employee ID', 'warning');
+    
+    const res = await apiCall(`/ems/employee-360/${empId}`, 'GET', null);
+    if(res) {
+        const html = `
+            <div class="bg-slate-800 p-4 rounded-lg">
+                <p><span class="text-slate-400">Employee Name:</span> <span class="text-white font-bold">${res.data.employee_name}</span></p>
+                <p><span class="text-slate-400">Shared EMS ID:</span> <span class="text-emerald-400 font-mono">${res.data.ems_shared_id}</span></p>
+                <hr class="border-slate-700 my-3">
+                <p class="font-bold text-blue-400 mb-2">Learning Summary:</p>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>Assessments Completed: ${res.data.learning_summary.total_assessments_completed}</li>
+                    <li>Recognitions: ${res.data.learning_summary.recognitions_earned.length === 0 ? 'None' : res.data.learning_summary.recognitions_earned.join(', ')}</li>
+                </ul>
+                <div class="mt-3 bg-blue-500/10 text-blue-400 p-2 text-xs rounded border border-blue-500/20">Data securely fetched via API mapping (No direct DB linking).</div>
+            </div>
+        `;
+        openModal('<i class="fa-solid fa-plug text-emerald-400"></i> EMS 360 Data Object', html);
+    }
+}
+
+// --- UI HELPERS ---
+function buildRubric() {
+    const rubrics = [{l:'Engagement', v:9}, {l:'Communication', v:8}, {l:'Technical Skills', v:10}, {l:'Decision Making', v:7}];
+    const container = document.getElementById('rubricContainer');
+    if (!container || container.innerHTML.trim() !== '') return;
+    rubrics.forEach((r,i) => {
+        container.innerHTML += `<div><div class="flex justify-between text-xs mb-1"><span class="text-slate-300">${r.l}</span><span class="text-amber-400 font-bold" id="score-${i}">${r.v}/10</span></div><input type="range" min="1" max="10" value="${r.v}" oninput="document.getElementById('score-${i}').innerText=this.value+'/10'" class="w-full accent-amber-500 bg-slate-800 h-1.5 rounded-lg appearance-none"></div>`;
+    });
+}
+
+function initCharts() {
+    if(document.getElementById('learningChart') && !window.lc) window.lc = new Chart(document.getElementById('learningChart'), { type:'line', data:{labels:['W1','W2','W3','W4'], datasets:[{label:'Progress', data:[55,62,70,88], borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.1)', fill:true}]}, options:{plugins:{legend:{display:false}}, scales:{y:{grid:{color:'#1e293b'}}, x:{grid:{color:'#1e293b'}}}} });
+    if(document.getElementById('roleChart') && !window.rc) window.rc = new Chart(document.getElementById('roleChart'), { type:'doughnut', data:{labels:['Learners','Trainers','Admins'], datasets:[{data:[1247,42,8], backgroundColor:['#3b82f6','#f59e0b','#ef4444'], borderWidth:0}]}, options:{plugins:{legend:{position:'bottom', labels:{color:'#94a3b8'}}}} });
+}
+function navigate(page, ev) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if (ev && ev.currentTarget) ev.currentTarget.classList.add('active');
+    const titles = {dashboard:'Executive Dashboard', attendance:'Attendance Engine', courses:'Course Directory', assessment:'Assessments', learnerProfile: 'Profile & Transcripts', bulk: 'Bulk Assignment', ems:'EMS 360 Sync'};
+    if(titles[page]) document.getElementById('pageTitle').innerText = titles[page];
+}
+function toggleAuthMode(mode) {
+    document.getElementById('loginForm').classList.toggle('hidden', mode !== 'login');
+    document.getElementById('registerForm').classList.toggle('hidden', mode !== 'register');
+    document.getElementById('btnShowLogin').className = mode === 'login' ? 'flex-1 text-xs py-2.5 rounded-md bg-blue-600 text-white font-bold transition' : 'flex-1 text-xs py-2.5 rounded-md text-slate-400 hover:text-white font-bold transition';
+    document.getElementById('btnShowRegister').className = mode === 'register' ? 'flex-1 text-xs py-2.5 rounded-md bg-blue-600 text-white font-bold transition' : 'flex-1 text-xs py-2.5 rounded-md text-slate-400 hover:text-white font-bold transition';
+}
+</script>
+</body>
+</html>
